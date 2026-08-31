@@ -1,120 +1,569 @@
-import os
-import requests
-from flask import Flask, request, jsonify, send_from_directory
+M
+My Workspace
+My project
 
-app = Flask(__name__)
+Production
 
-# GitHub Config
-GITHUB_USER = "Pranay8389"
-GITHUB_REPO = "pranay-media-hub"
-GITHUB_BRANCH = "main"
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+pranay-media-hub
 
-# Folder paths
-DIRS = {
-    'images': os.path.join(BASE_DIR, 'images'),
-    'videos': os.path.join(BASE_DIR, 'videos'),
-    'music': os.path.join(BASE_DIR, 'mp3'),
-    'documents': os.path.join(BASE_DIR, 'documents')
-}
+Search
+Ctrl+
+K
 
-for path in DIRS.values():
-    os.makedirs(path, exist_ok=True)
+New
 
-def fetch_github_files(folder_name, valid_extensions):
-    url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{folder_name}?ref={GITHUB_BRANCH}"
-    file_list = []
-    try:
-        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-        if response.status_code == 200:
-            items = response.json()
-            for item in items:
-                if item.get('type') == 'file':
-                    download_url = item.get('download_url')
-                    if download_url and any(download_url.lower().endswith(ext) for ext in valid_extensions):
-                        file_list.append(download_url)
-    except Exception as e:
-        print(f"Error fetching from GitHub: {e}")
-    return file_list
+Upgrade
 
-@app.route('/')
-def home():
-    return jsonify({"status": "Server Active"}), 200
 
-# Flexible Upload Route: Accepts file_type or auto-detects folder
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No filename"}), 400
-    
-    file_type = request.form.get('file_type', 'images')
-    save_dir = DIRS.get(file_type, DIRS['images'])
+p
+Environment
+pranay-media-hub
+Deploys
+Settings
+Monitor
+Events
+Logs
+Metrics
+Manage
+Environment
+Shell
+Compute
+Previews
+Disk
+One-Off Jobs
+Introducing Workflows
+An orchestration and execution engine for long-running, distributed tasks.
+Learn more
 
-    filepath = os.path.join(save_dir, file.filename)
-    file.save(filepath)
-    return jsonify({"message": f"Uploaded successfully to {file_type}"}), 200
 
-@app.route('/images', methods=['GET'])
-def get_images():
-    exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif')
-    files = fetch_github_files('images', exts)
-    if os.path.exists(DIRS['images']):
-        for f in os.listdir(DIRS['images']):
-            if f.lower().endswith(exts):
-                url = f"/static_img/{f}"
-                if url not in files: files.append(url)
-    return jsonify(files)
+Changelog
+Invite a friend
 
-@app.route('/videos', methods=['GET'])
-def get_videos():
-    exts = ('.mp4', '.mkv', '.avi', '.mov', '.3gp', '.webm')
-    files = fetch_github_files('videos', exts)
-    if os.path.exists(DIRS['videos']):
-        for f in os.listdir(DIRS['videos']):
-            if f.lower().endswith(exts):
-                url = f"/static_vid/{f}"
-                if url not in files: files.append(url)
-    return jsonify(files)
+Contact support
+Render Status
+Web Service
+pranay-media-hub
+Python 3
+Free
+Upgrade your instance
 
-@app.route('/music', methods=['GET'])
-def get_music():
-    exts = ('.mp3', '.wav', '.aac', '.m4a', '.flac')
-    files = fetch_github_files('mp3', exts)
-    if os.path.exists(DIRS['music']):
-        for f in os.listdir(DIRS['music']):
-            if f.lower().endswith(exts):
-                url = f"/static_aud/{f}"
-                if url not in files: files.append(url)
-    return jsonify(files)
+Connect
 
-@app.route('/documents', methods=['GET'])
-def get_documents():
-    exts = ('.pdf', '.doc', '.docx', '.txt', '.zip', '.xlsx')
-    files = fetch_github_files('documents', exts)
-    if os.path.exists(DIRS['documents']):
-        for f in os.listdir(DIRS['documents']):
-            if f.lower().endswith(exts):
-                url = f"/static_doc/{f}"
-                if url not in files: files.append(url)
-    return jsonify(files)
+Manual Deploy
+Service ID:
+srv-daapl9h42hec73b74ll0
 
-# Serving Static Files
-@app.route('/static_img/<filename>')
-def serve_image(filename): return send_from_directory(DIRS['images'], filename)
+Pranay8389 / pranay-media-hub
+main
+5424e1a
+Live
+https://pranay-media-hub.onrender.com
 
-@app.route('/static_vid/<filename>')
-def serve_video(filename): return send_from_directory(DIRS['videos'], filename)
+Most recent deploy
+Status:
+Failed
+Commit:
+5424e1a
+b6be7c6
+Duration:
+29.6s
+Action:
+Your free instance will spin down with inactivity, which can delay requests by 50 seconds or more.
+Upgrade now
+Search deploys and commits
+Deploy
+30
+Trigger
+Duration
+Deploy
+Update server.py just aading refresh
 
-@app.route('/static_aud/<filename>')
-def serve_audio(filename): return send_from_directory(DIRS['music'], filename)
+Trigger
+Auto-Deploy
+Duration
+29.6s
+b6be7c6
+•
+Deployed on
+September 1, 2026
+at
+5:01:54 AM GMT+5:30
 
-@app.route('/static_doc/<filename>')
-def serve_doc(filename): return send_from_directory(DIRS['documents'], filename)
+Deploy
+Update server.py just added
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+Trigger
+Auto-Deploy
+Duration
+32.5s
+dc6b2f8
+•
+Deployed on
+September 1, 2026
+at
+5:00:33 AM GMT+5:30
+
+Deploy
+Update server.py
+
+Trigger
+Auto-Deploy
+Duration
+32.9s
+bbe5dad
+•
+Deployed on
+September 1, 2026
+at
+4:43:15 AM GMT+5:30
+
+Deploy
+Update server.py changes refresh git
+
+Trigger
+Auto-Deploy
+Duration
+40.2s
+5424e1a
+•
+Deployed on
+September 1, 2026
+at
+4:38:14 AM GMT+5:30
+
+Deploy
+Update server.py welcome screen issue and mp3 videos issue fixing
+
+Trigger
+Auto-Deploy
+Duration
+41.2s
+3c962b9
+•
+Deployed on
+September 1, 2026
+at
+4:23:53 AM GMT+5:30
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+39.3s
+8aa5e52
+•
+Deployed on
+September 1, 2026
+at
+4:18:10 AM GMT+5:30
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+42.2s
+7b070ff
+•
+Deployed on
+September 1, 2026
+at
+4:15:04 AM GMT+5:30
+
+Rollback
+Deploy
+Update server.py add old code so many issues happend so add old code
+
+Trigger
+Auto-Deploy
+Duration
+39.8s
+1961801
+•
+Deployed on
+September 1, 2026
+at
+4:08:56 AM GMT+5:30
+
+Rollback
+Deploy
+Update server.py test 2 fixing issues
+
+Trigger
+Auto-Deploy
+Duration
+1m35s
+9debbd8
+•
+Deployed on
+September 1, 2026
+at
+3:55:59 AM GMT+5:30
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+44.2s
+804b0d4
+•
+Deployed on
+September 1, 2026
+at
+3:40:04 AM GMT+5:30
+
+
+Rollback
+Deploy
+Update server.py test
+
+Trigger
+Auto-Deploy
+Duration
+1m34s
+08855fc
+•
+Deployed on
+September 1, 2026
+at
+3:28:41 AM GMT+5:30
+
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+39.9s
+99b8882
+•
+Deployed on
+September 1, 2026
+at
+1:02:15 AM GMT+5:30
+
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+50.4s
+8de6633
+•
+Deployed on
+September 1, 2026
+at
+12:57:43 AM GMT+5:30
+
+
+Rollback
+Deploy
+Delete documents/aaa
+
+Trigger
+Auto-Deploy
+Duration
+41.3s
+3f9d8f2
+•
+Deployed on
+August 31, 2026
+at
+10:23:09 PM GMT+5:30
+
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+40.0s
+5019777
+•
+Deployed on
+August 31, 2026
+at
+10:22:48 PM GMT+5:30
+
+
+Rollback
+Deploy
+Create aaa
+
+Trigger
+Auto-Deploy
+Duration
+51.0s
+3387e3f
+•
+Deployed on
+August 31, 2026
+at
+10:22:03 PM GMT+5:30
+
+
+Rollback
+Deploy
+Delete videos/images
+
+Trigger
+Auto-Deploy
+Duration
+42.7s
+d55f5dc
+•
+Deployed on
+August 31, 2026
+at
+10:21:07 PM GMT+5:30
+
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+41.7s
+5c6c925
+•
+Deployed on
+August 31, 2026
+at
+10:20:40 PM GMT+5:30
+
+
+Rollback
+Deploy
+Create images
+
+Trigger
+Auto-Deploy
+Duration
+36.7s
+cf8f163
+•
+Deployed on
+August 31, 2026
+at
+10:18:48 PM GMT+5:30
+
+
+Rollback
+Deploy
+Delete mp3/.gitkeep
+
+Trigger
+Auto-Deploy
+Duration
+36.1s
+a00e5ea
+•
+Deployed on
+August 31, 2026
+at
+10:18:10 PM GMT+5:30
+
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+38.2s
+821e54b
+•
+Deployed on
+August 31, 2026
+at
+10:17:49 PM GMT+5:30
+
+
+Rollback
+Deploy
+Create .gitkeep
+
+Trigger
+Auto-Deploy
+Duration
+34.9s
+dd72a0b
+•
+Deployed on
+August 31, 2026
+at
+10:17:08 PM GMT+5:30
+
+
+Rollback
+Deploy
+Delete videos
+
+Trigger
+Auto-Deploy
+Duration
+52.7s
+7123bc7
+•
+Deployed on
+August 31, 2026
+at
+10:14:41 PM GMT+5:30
+
+
+Rollback
+Deploy
+Delete mp3
+
+Trigger
+Auto-Deploy
+Duration
+35.3s
+4d081c4
+•
+Deployed on
+August 31, 2026
+at
+10:14:28 PM GMT+5:30
+
+
+Rollback
+Deploy
+Create videos test2
+
+Trigger
+Auto-Deploy
+Duration
+35.0s
+c808ba0
+•
+Deployed on
+August 31, 2026
+at
+10:11:43 PM GMT+5:30
+
+
+Rollback
+Deploy
+Create mp3 test
+
+Trigger
+Auto-Deploy
+Duration
+35.4s
+1c5baf0
+•
+Deployed on
+August 31, 2026
+at
+10:10:58 PM GMT+5:30
+
+
+Rollback
+Deploy
+Delete images/test.txt
+
+Trigger
+Auto-Deploy
+Duration
+34.4s
+20e8329
+•
+Deployed on
+August 31, 2026
+at
+10:04:12 PM GMT+5:30
+
+
+Rollback
+Deploy
+Add files via upload
+
+Trigger
+Auto-Deploy
+Duration
+34.7s
+5928f21
+•
+Deployed on
+August 31, 2026
+at
+9:42:50 PM GMT+5:30
+
+
+Rollback
+Deploy
+Rename photo2.jpg to images/photo2.jpg
+
+Trigger
+Auto-Deploy
+Duration
+35.1s
+a9016b2
+•
+Deployed on
+August 31, 2026
+at
+9:05:37 PM GMT+5:30
+
+
+Rollback
+Deploy
+Add test.txt with initial content
+
+Trigger
+Auto-Deploy
+Duration
+36.5s
+f32f9ce
+•
+Deployed on
+August 31, 2026
+at
+9:02:56 PM GMT+5:30
+
+
+Rollback
+0 services selected:
+
+Move
+
+
+05:02:47
+Preparing containers for initialization ...
+05:02:48
+Starting the containers ...
+05:02:49
+Variables injected ...
+05:02:50
+Finalizing startup ...
+05:02:51
+First deployment detected ...
+05:02:52
+Hello, world!
+
+pranay-media-hub is live!
+
+Upgrade your workspace to collaborate with your team. Pro workspaces also get 14-day log retention, horizontal autoscaling, and more.
+
+View
+Upgrade to Pro
