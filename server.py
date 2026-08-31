@@ -1,34 +1,42 @@
 import os
+import requests
 from flask import Flask, request, jsonify, send_from_directory
 
 app = Flask(__name__)
 
+# GitHub Config
+GITHUB_USER = "Pranay8389"
+GITHUB_REPO = "pranay-media-hub"
+GITHUB_BRANCH = "main"
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOCAL_IMAGES = os.path.join(BASE_DIR, 'images')
+os.makedirs(LOCAL_IMAGES, exist_ok=True)
 
-# GitHub Folder Mapping
-FOLDERS = {
-    'images': os.path.join(BASE_DIR, 'images'),
-    'videos': os.path.join(BASE_DIR, 'videos'),
-    'mp3': os.path.join(BASE_DIR, 'mp3'),
-    'documents': os.path.join(BASE_DIR, 'documents')
-}
-
-# Ensure folders exist
-for folder in FOLDERS.values():
-    os.makedirs(folder, exist_ok=True)
-
-def scan_files(folder_key, extensions):
-    path = FOLDERS[folder_key]
-    if not os.path.exists(path):
-        return []
-    files = os.listdir(path)
-    return [f"/static_files/{folder_key}/{f}" for f in files if f.lower().endswith(extensions)]
+# Helper function to fetch files directly from GitHub API
+def fetch_github_files(folder_name, valid_extensions):
+    url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{folder_name}?ref={GITHUB_BRANCH}"
+    file_list = []
+    
+    try:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+        if response.status_code == 200:
+            items = response.json()
+            for item in items:
+                if item.get('type') == 'file':
+                    download_url = item.get('download_url')
+                    if download_url and any(download_url.lower().endswith(ext) for ext in valid_extensions):
+                        file_list.append(download_url)
+    except Exception as e:
+        print(f"Error fetching from GitHub: {e}")
+        
+    return file_list
 
 @app.route('/')
 def home():
-    return jsonify({"status": "Server active"}), 200
+    return jsonify({"status": "Server Active"}), 200
 
-# File Upload Route
+# File Upload Route (Saves uploaded files locally and appends to response)
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -37,33 +45,46 @@ def upload_file():
     if file.filename == '':
         return jsonify({"error": "No filename"}), 400
     
-    filepath = os.path.join(FOLDERS['images'], file.filename)
+    filepath = os.path.join(LOCAL_IMAGES, file.filename)
     file.save(filepath)
     return jsonify({"message": "Uploaded successfully"}), 200
 
-# Endpoint API Routes
+# API Endpoints linked directly to GitHub Data
 @app.route('/images', methods=['GET'])
 def get_images():
-    return jsonify(scan_files('images', ('.png', '.jpg', '.jpeg', '.webp', '.gif')))
+    exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif')
+    # Fetch from GitHub
+    github_files = fetch_github_files('images', exts)
+    
+    # Also include newly app-uploaded local files
+    if os.path.exists(LOCAL_IMAGES):
+        for f in os.listdir(LOCAL_IMAGES):
+            if f.lower().endswith(exts):
+                local_url = f"/static_img/{f}"
+                if local_url not in github_files:
+                    github_files.append(local_url)
+                    
+    return jsonify(github_files)
 
 @app.route('/videos', methods=['GET'])
 def get_videos():
-    return jsonify(scan_files('videos', ('.mp4', '.mkv', '.avi', '.mov', '.3gp')))
+    exts = ('.mp4', '.mkv', '.avi', '.mov', '.3gp', '.webm')
+    return jsonify(fetch_github_files('videos', exts))
 
 @app.route('/music', methods=['GET'])
 def get_music():
-    return jsonify(scan_files('mp3', ('.mp3', '.wav', '.aac', '.m4a', '.flac')))
+    exts = ('.mp3', '.wav', '.aac', '.m4a', '.flac')
+    return jsonify(fetch_github_files('mp3', exts))
 
 @app.route('/documents', methods=['GET'])
 def get_documents():
-    return jsonify(scan_files('documents', ('.pdf', '.doc', '.docx', '.txt', '.zip', '.xlsx')))
+    exts = ('.pdf', '.doc', '.docx', '.txt', '.zip', '.xlsx')
+    return jsonify(fetch_github_files('documents', exts))
 
-# Static File Serve Path
-@app.route('/static_files/<category>/<filename>', methods=['GET'])
-def serve_file(category, filename):
-    if category in FOLDERS and os.path.exists(FOLDERS[category]):
-        return send_from_directory(FOLDERS[category], filename)
-    return jsonify({"error": "File not found"}), 404
+# Serve locally uploaded images
+@app.route('/static_img/<filename>')
+def serve_image(filename):
+    return send_from_directory(LOCAL_IMAGES, filename)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
