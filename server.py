@@ -1,99 +1,42 @@
-from flask import Flask, jsonify, send_from_directory
 import os
+from flask import Flask, request, jsonify, send_from_directory
 
 app = Flask(__name__)
 
+# Folders Setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'images')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-IMAGE_FOLDER = os.path.join(BASE_DIR, "images")
-VIDEO_FOLDER = os.path.join(BASE_DIR, "videos")
-MUSIC_FOLDER = os.path.join(BASE_DIR, "mp3")
-DOCUMENT_FOLDER = os.path.join(BASE_DIR, "documents")
-
-
-def get_files(folder, extensions):
-    if not os.path.exists(folder):
-        return []
-
-    return sorted([
-        filename
-        for filename in os.listdir(folder)
-        if filename.lower().endswith(extensions)
-    ])
-
-
-@app.route("/")
-def home():
-    return "Pranay Media Hub server is running"
-
-
-# ---------- PHOTOS ----------
-
-@app.route("/images")
-def images():
-    files = get_files(
-        IMAGE_FOLDER,
-        (".jpg", ".jpeg", ".png", ".webp", ".gif")
-    )
-    return jsonify(files)
-
-
-@app.route("/images/<path:filename>")
-def image(filename):
-    return send_from_directory(IMAGE_FOLDER, filename)
-
-
-# ---------- VIDEOS ----------
-
-@app.route("/videos")
-def videos():
-    files = get_files(
-        VIDEO_FOLDER,
-        (".mp4", ".mkv", ".webm", ".mov", ".avi")
-    )
-    return jsonify(files)
-
-
-@app.route("/videos/<path:filename>")
-def video(filename):
-    return send_from_directory(VIDEO_FOLDER, filename)
-
-
-# ---------- MUSIC ----------
-
-@app.route("/music")
-def music():
-    files = get_files(
-        MUSIC_FOLDER,
-        (".mp3", ".wav", ".m4a", ".ogg")
-    )
-    return jsonify(files)
-
-
-@app.route("/music/<path:filename>")
-def music_file(filename):
-    return send_from_directory(MUSIC_FOLDER, filename)
-
-
-# ---------- DOCUMENTS ----------
-
-@app.route("/documents")
-def documents():
-    files = get_files(
-        DOCUMENT_FOLDER,
-        (".pdf", ".txt", ".doc", ".docx")
-    )
-    return jsonify(files)
-
-
-@app.route("/documents/<path:filename>")
-def document(filename):
-    return send_from_directory(DOCUMENT_FOLDER, filename)
-
-
-if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000))
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
     
-    )
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+        
+    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(filepath)
+    return jsonify({"message": "File uploaded successfully"}), 200
+
+@app.route('/images', methods=['GET'])
+def get_images():
+    files = os.listdir(UPLOAD_FOLDER)
+    host = request.host_url.rstrip('/')
+    image_urls = [f"{host}/static/images/{f}" for f in files if f.lower().endswith(('png', 'jpg', 'jpeg', 'webp'))]
+    return jsonify(image_urls)
+
+@app.route('/static/images/<filename>')
+def serve_image(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route('/location', methods=['POST'])
+def receive_location():
+    data = request.json
+    print(f"Received Location: Latitude = {data.get('latitude')}, Longitude = {data.get('longitude')}")
+    return jsonify({"message": "Location received successfully"}), 200
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
