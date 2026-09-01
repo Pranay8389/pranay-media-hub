@@ -54,35 +54,54 @@ def upload_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-def get_cloudinary_resources(folder_name, resource_type="image"):
-    try:
-        # Search both with and without trailing slash to guarantee fetch
-        resources = cloudinary.api.resources(
-            type = "upload",
-            prefix = f"pranay_media_hub/{folder_name}",
-            resource_type = resource_type,
-            max_results = 500
-        )
-        return [res['secure_url'] for res in resources.get('resources', [])]
-    except Exception as e:
-        print(f"Error fetching {folder_name}: {e}")
-        return []
-
+# Fix: Fetch ALL uploaded resources without strict folder restriction
 @app.route('/images', methods=['GET'])
 def get_images():
-    return jsonify(get_cloudinary_resources('images', 'image'))
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "image",
+            max_results = 500
+        )
+        return jsonify([res['secure_url'] for res in resources.get('resources', [])])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/videos', methods=['GET'])
 def get_videos():
-    return jsonify(get_cloudinary_resources('videos', 'video'))
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "video",
+            max_results = 500
+        )
+        return jsonify([res['secure_url'] for res in resources.get('resources', [])])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/music', methods=['GET'])
 def get_music():
-    return jsonify(get_cloudinary_resources('music', 'video'))
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "video",
+            max_results = 500
+        )
+        return jsonify([res['secure_url'] for res in resources.get('resources', [])])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/documents', methods=['GET'])
 def get_documents():
-    return jsonify(get_cloudinary_resources('documents', 'raw'))
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "raw",
+            max_results = 500
+        )
+        return jsonify([res['secure_url'] for res in resources.get('resources', [])])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
