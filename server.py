@@ -54,13 +54,14 @@ def upload_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Fix: Fetch ALL uploaded resources without strict folder restriction
+# Strict Folder Filtering so files don't mix/duplicate
 @app.route('/images', methods=['GET'])
 def get_images():
     try:
         resources = cloudinary.api.resources(
             type = "upload",
             resource_type = "image",
+            prefix = "pranay_media_hub/images",
             max_results = 500
         )
         return jsonify([res['secure_url'] for res in resources.get('resources', [])])
@@ -73,6 +74,7 @@ def get_videos():
         resources = cloudinary.api.resources(
             type = "upload",
             resource_type = "video",
+            prefix = "pranay_media_hub/videos",
             max_results = 500
         )
         return jsonify([res['secure_url'] for res in resources.get('resources', [])])
@@ -85,6 +87,7 @@ def get_music():
         resources = cloudinary.api.resources(
             type = "upload",
             resource_type = "video",
+            prefix = "pranay_media_hub/music",
             max_results = 500
         )
         return jsonify([res['secure_url'] for res in resources.get('resources', [])])
@@ -97,6 +100,7 @@ def get_documents():
         resources = cloudinary.api.resources(
             type = "upload",
             resource_type = "raw",
+            prefix = "pranay_media_hub/documents",
             max_results = 500
         )
         return jsonify([res['secure_url'] for res in resources.get('resources', [])])
