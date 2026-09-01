@@ -1,70 +1,122 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 app = Flask(__name__)
+CORS(app)
 
-# Uploads Folder Setup
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'images'), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'videos'), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'music'), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'documents'), exist_ok=True)
+CLOUDINARY_CLOUD_NAME = "hs6ssya2"
+CLOUDINARY_API_KEY = "829421843387563"
+CLOUDINARY_API_SECRET = "6A20eVzCnAtsjd2WFWz3QokjxuY"
+
+cloudinary.config(
+    cloud_name = CLOUDINARY_CLOUD_NAME,
+    api_key = CLOUDINARY_API_KEY,
+    api_secret = CLOUDINARY_API_SECRET,
+    secure = True
+)
+
+@app.route('/')
+def home():
+    return jsonify({"status": "Pranay Media Hub Active"})
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file uploaded"}), 400
-            
-        file = request.files['file']
-        file_type = request.form.get('file_type', 'documents')
-
-        if file.filename == '':
-            return jsonify({"error": "No filename provided"}), 400
-
-        valid_folders = ['images', 'videos', 'music', 'documents']
-        if file_type not in valid_folders:
-            file_type = 'documents'
-
-        save_dir = os.path.join(UPLOAD_FOLDER, file_type)
-        save_path = os.path.join(save_dir, file.filename)
         
-        # 🟢 పాత ఎర్రర్ కి అసలు ఫిక్స్: 'with file:' తీసేసి కేవలం file.save() పెట్టాం
-        file.save(save_path)
+        file = request.files['file']
+        file_type = request.form.get('file_type', 'images')
 
-        return jsonify({"message": "File uploaded successfully", "path": f"/uploads/{file_type}/{file.filename}"}), 200
+        resource_type = "auto"
+        if file_type in ['images']:
+            resource_type = "image"
+        elif file_type in ['videos', 'music']:
+            resource_type = "video"
+        elif file_type in ['documents']:
+            resource_type = "raw"
+
+        upload_result = cloudinary.uploader.upload(
+            file,
+            folder = f"pranay_media_hub/{file_type}",
+            resource_type = resource_type
+        )
+
+        return jsonify({
+            "message": "Uploaded successfully",
+            "url": upload_result.get('secure_url')
+        }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 1. Fetch ALL Images (No Folder Limits)
 @app.route('/images', methods=['GET'])
 def get_images():
-    path = os.path.join(UPLOAD_FOLDER, 'images')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/images/{f}" for f in files])
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "image",
+            max_results = 500
+        )
+        return jsonify([res['secure_url'] for res in resources.get('resources', [])])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# 2. Fetch Videos ONLY (Filters out MP3/Audio files)
 @app.route('/videos', methods=['GET'])
 def get_videos():
-    path = os.path.join(UPLOAD_FOLDER, 'videos')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/videos/{f}" for f in files])
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "video",
+            max_results = 500
+        )
+        # Filter for Video Extensions only (.mp4, .mkv, .mov, etc.)
+        all_videos = resources.get('resources', [])
+        video_urls = [
+            res['secure_url'] for res in all_videos 
+            if res.get('format') in ['mp4', 'mkv', 'mov', 'avi', 'webm', '3gp']
+        ]
+        return jsonify(video_urls)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# 3. Fetch Music ONLY (Filters for Audio formats like MP3, WAV, AAC)
 @app.route('/music', methods=['GET'])
 def get_music():
-    path = os.path.join(UPLOAD_FOLDER, 'music')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/music/{f}" for f in files])
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "video",
+            max_results = 500
+        )
+        # Filter for Audio Extensions only (.mp3, .wav, .aac, etc.)
+        all_media = resources.get('resources', [])
+        music_urls = [
+            res['secure_url'] for res in all_media 
+            if res.get('format') in ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac']
+        ]
+        return jsonify(music_urls)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# 4. Fetch Documents ONLY
 @app.route('/documents', methods=['GET'])
 def get_documents():
-    path = os.path.join(UPLOAD_FOLDER, 'documents')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/documents/{f}" for f in files])
-
-@app.route('/uploads/<folder>/<filename>', methods=['GET'])
-def serve_file(folder, filename):
-    return send_from_directory(os.path.join(UPLOAD_FOLDER, folder), filename)
+    try:
+        resources = cloudinary.api.resources(
+            type = "upload",
+            resource_type = "raw",
+            max_results = 500
+        )
+        return jsonify([res['secure_url'] for res in resources.get('resources', [])])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
