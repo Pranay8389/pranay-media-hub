@@ -24,7 +24,7 @@ cloudinary.config(
 def home():
     return jsonify({"status": "Pranay Media Hub Cloudinary Backend Active"})
 
-# Smart Upload Endpoint (Files go directly to Cloudinary)
+# Smart Upload Endpoint
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
@@ -56,14 +56,14 @@ def upload_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Fetch Media Endpoints from Cloudinary
+# Updated Fetch Function (Cloudinary lo unna ALL files vasthayi)
 def get_cloudinary_resources(folder_name, resource_type="image"):
     try:
         resources = cloudinary.api.resources(
             type = "upload",
-            prefix = f"pranay_media_hub/{folder_name}",
+            prefix = f"pranay_media_hub/{folder_name}/",
             resource_type = resource_type,
-            max_results = 100
+            max_results = 500  # 500 items varaku fast ga osthayi
         )
         return [res['secure_url'] for res in resources.get('resources', [])]
     except Exception as e:
