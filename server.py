@@ -1,71 +1,133 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
+import requests
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+
+# Cloudinary Library ఇక్కడ Import చేయాలి
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+# .env ఫైల్ లోని Variables లోడ్ చేయడానికి
+load_dotenv()
 
 app = Flask(__name__)
 
-# Render లో Persistent Storage వాడటానికి Base Path
-BASE_DIR = os.getenv('RENDER_DISK_PATH', os.getcwd())
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+#====================================================
+# 🟢 STEP 1: CLOUDINARY CONFIGURATION (తప్పనిసరి)
+# మీ Cloudinary Dashboard నుండి ఈ వివరాలు తీసుకోండి
+#====================================================
+cloudinary.config( 
+  cloud_name = "మీ_CLOUD_NAME",      # <--- ఇక్కడ మార్చండి
+  api_key = "మీ_API_KEY",            # <--- ఇక్కడ మార్చండి
+  api_secret = "మీ_API_SECRET",      # <--- ఇక్కడ మార్చండి
+  secure = True
+)
 
-# ఫోల్డర్లు లేకపోతే క్రియేట్ చేయడం
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'images'), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'videos'), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'music'), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'documents'), exist_ok=True)
+# Render లో Persistence లేని ఫోల్డర్లు వాడకూడదు.
+# Cloudinary వాడుతున్నాం కాబట్టి Local folders అవసరం లేదు.
 
 @app.route('/upload', methods=['POST'])
-def upload_file():
+def upload_media():
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file uploaded"}), 400
             
         file = request.files['file']
-        file_type = request.form.get('file_type', 'documents')
+        file_type = request.form.get('file_type', 'images') # android 'images', 'videos' అని పంపుతుంది
 
         if file.filename == '':
-            return jsonify({"error": "No filename provided"}), 400
+            return jsonify({"error": "No filename selected"}), 400
 
-        valid_folders = ['images', 'videos', 'music', 'documents']
-        if file_type not in valid_folders:
-            file_type = 'documents'
+        #========================================================
+        # 🟢 STEP 2: DYNAMIC CLOUDINARY UPLOAD (MAIN FIX)
+        # ఫైల్ ని డైరెక్ట్ గా Cloudinary కి అప్‌లోడ్ చేస్తాం
+        #========================================================
+        # resource_type 'auto' అంటే image/video ని ఆటోమేటిక్ గా గుర్తిస్తుంది
+        upload_result = cloudinary.uploader.upload(
+            file, 
+            resource_type="auto", 
+            folder=f"pranay_media_hub/{file_type}",
+            use_filename=True,
+            unique_filename=True
+        )
 
-        save_dir = os.path.join(UPLOAD_FOLDER, file_type)
-        save_path = os.path.join(save_dir, file.filename)
-        
-        file.save(save_path)
+        # Cloudinary నుండి వచ్చిన Secure URL
+        secure_url = upload_result.get('secure_url')
 
-        return jsonify({"message": "File uploaded successfully", "path": f"/uploads/{file_type}/{file.filename}"}), 200
+        print(f"Uploaded Successfully to Cloudinary: {secure_url}")
+
+        return jsonify({
+            "message": "Media uploaded successfully to Cloud",
+            "url": secure_url,
+            "file_type": file_type
+        }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error during upload: {str(e)}")
+        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
 
 @app.route('/images', methods=['GET'])
 def get_images():
-    path = os.path.join(UPLOAD_FOLDER, 'images')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/images/{f}" for f in files])
+    try:
+        # Cloudinary నుండి Images లిస్ట్ తెచ్చుకోవడం
+        result = cloudinary.api.resources(
+            type="upload",
+            prefix="pranay_media_hub/images", # Folder path
+            resource_type="image",
+            max_results=100
+        )
+        # కేవలం Secure URLs ని మాత్రమే Android కి పంపడం
+        urls = [res['secure_url'] for res in result['resources']]
+        return jsonify(urls)
+    except Exception as e:
+        return jsonify([])
 
 @app.route('/videos', methods=['GET'])
 def get_videos():
-    path = os.path.join(UPLOAD_FOLDER, 'videos')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/videos/{f}" for f in files])
+    try:
+        # Cloudinary నుండి Videos లిస్ట్ తెచ్చుకోవడం
+        result = cloudinary.api.resources(
+            type="upload",
+            prefix="pranay_media_hub/videos", # Folder path
+            resource_type="video",
+            max_results=100
+        )
+        # Secure URLs for videos
+        urls = [res['secure_url'] for res in result['resources']]
+        return jsonify(urls)
+    except Exception as e:
+        return jsonify([])
 
 @app.route('/music', methods=['GET'])
 def get_music():
-    path = os.path.join(UPLOAD_FOLDER, 'music')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/music/{f}" for f in files])
+    # Music కోసం కూడా resource_type="raw" వాడాలి
+    try:
+        result = cloudinary.api.resources(
+            type="upload",
+            prefix="pranay_media_hub/music",
+            resource_type="raw", # Music files are considered raw in Cloudinary
+            max_results=100
+        )
+        urls = [res['secure_url'] for res in result['resources']]
+        return jsonify(urls)
+    except Exception as e:
+        return jsonify([])
 
 @app.route('/documents', methods=['GET'])
 def get_documents():
-    path = os.path.join(UPLOAD_FOLDER, 'documents')
-    files = os.listdir(path) if os.path.exists(path) else []
-    return jsonify([f"/uploads/documents/{f}" for f in files])
-
-@app.route('/uploads/<folder>/<filename>', methods=['GET'])
-def serve_file(folder, filename):
-    return send_from_directory(os.path.join(UPLOAD_FOLDER, folder), filename)
+    # Documents resource_type="raw"
+    try:
+        result = cloudinary.api.resources(
+            type="upload",
+            prefix="pranay_media_hub/documents",
+            resource_type="raw",
+            max_results=100
+        )
+        urls = [res['secure_url'] for res in result['resources']]
+        return jsonify(urls)
+    except Exception as e:
+        return jsonify([])
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
