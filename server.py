@@ -8,7 +8,6 @@ import cloudinary.api
 app = Flask(__name__)
 CORS(app)
 
-# Cloudinary Setup with your exact Keys
 CLOUDINARY_CLOUD_NAME = "hs6ssya2"
 CLOUDINARY_API_KEY = "829421843387563"
 CLOUDINARY_API_SECRET = "6A20eVzCnAtsjd2WFWz3QokjxuY"
@@ -22,9 +21,8 @@ cloudinary.config(
 
 @app.route('/')
 def home():
-    return jsonify({"status": "Pranay Media Hub Cloudinary Backend Active"})
+    return jsonify({"status": "Pranay Media Hub Active"})
 
-# Smart Upload Endpoint
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
@@ -56,14 +54,14 @@ def upload_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Updated Fetch Function (Cloudinary lo unna ALL files vasthayi)
 def get_cloudinary_resources(folder_name, resource_type="image"):
     try:
+        # Search both with and without trailing slash to guarantee fetch
         resources = cloudinary.api.resources(
             type = "upload",
-            prefix = f"pranay_media_hub/{folder_name}/",
+            prefix = f"pranay_media_hub/{folder_name}",
             resource_type = resource_type,
-            max_results = 500  # 500 items varaku fast ga osthayi
+            max_results = 500
         )
         return [res['secure_url'] for res in resources.get('resources', [])]
     except Exception as e:
