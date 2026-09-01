@@ -23,6 +23,7 @@ cloudinary.config(
 def home():
     return jsonify({"status": "Pranay Media Hub Active"})
 
+# Optimized Universal Upload Endpoint
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
@@ -30,20 +31,31 @@ def upload_file():
             return jsonify({"error": "No file uploaded"}), 400
         
         file = request.files['file']
-        file_type = request.form.get('file_type', 'images')
+        filename = file.filename.lower()
 
+        # Automatic Resource Type & Extension Mapping
         resource_type = "auto"
-        if file_type in ['images']:
-            resource_type = "image"
-        elif file_type in ['videos', 'music']:
-            resource_type = "video"
-        elif file_type in ['documents']:
-            resource_type = "raw"
+        folder_path = "pranay_media_hub/other"
 
-        upload_result = cloudinary.uploader.upload(
+        if filename.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+            resource_type = "image"
+            folder_path = "pranay_media_hub/images"
+        elif filename.endswith(('.mp4', '.mkv', '.mov', '.avi', '.webm', '.3gp')):
+            resource_type = "video"
+            folder_path = "pranay_media_hub/videos"
+        elif filename.endswith(('.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac')):
+            resource_type = "video"  # Cloudinary requires 'video' resource_type for Audio
+            folder_path = "pranay_media_hub/music"
+        elif filename.endswith(('.pdf', '.docx', '.txt', '.zip')):
+            resource_type = "raw"
+            folder_path = "pranay_media_hub/documents"
+
+        # Using upload_large to handle both small and large media files securely
+        upload_result = cloudinary.uploader.upload_large(
             file,
-            folder = f"pranay_media_hub/{file_type}",
-            resource_type = resource_type
+            folder = folder_path,
+            resource_type = resource_type,
+            chunk_size = 6000000  # 6MB Chunks
         )
 
         return jsonify({
@@ -52,31 +64,26 @@ def upload_file():
         }), 200
 
     except Exception as e:
+        print(f"Upload Error: {e}")
         return jsonify({"error": str(e)}), 500
 
-# 1. Fetch ALL Images (No Folder Limits)
+# Fetch Endpoints
 @app.route('/images', methods=['GET'])
 def get_images():
     try:
         resources = cloudinary.api.resources(
-            type = "upload",
-            resource_type = "image",
-            max_results = 500
+            type = "upload", resource_type = "image", max_results = 500
         )
         return jsonify([res['secure_url'] for res in resources.get('resources', [])])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 2. Fetch Videos ONLY (Filters out MP3/Audio files)
 @app.route('/videos', methods=['GET'])
 def get_videos():
     try:
         resources = cloudinary.api.resources(
-            type = "upload",
-            resource_type = "video",
-            max_results = 500
+            type = "upload", resource_type = "video", max_results = 500
         )
-        # Filter for Video Extensions only (.mp4, .mkv, .mov, etc.)
         all_videos = resources.get('resources', [])
         video_urls = [
             res['secure_url'] for res in all_videos 
@@ -86,16 +93,12 @@ def get_videos():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 3. Fetch Music ONLY (Filters for Audio formats like MP3, WAV, AAC)
 @app.route('/music', methods=['GET'])
 def get_music():
     try:
         resources = cloudinary.api.resources(
-            type = "upload",
-            resource_type = "video",
-            max_results = 500
+            type = "upload", resource_type = "video", max_results = 500
         )
-        # Filter for Audio Extensions only (.mp3, .wav, .aac, etc.)
         all_media = resources.get('resources', [])
         music_urls = [
             res['secure_url'] for res in all_media 
@@ -105,14 +108,11 @@ def get_music():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 4. Fetch Documents ONLY
 @app.route('/documents', methods=['GET'])
 def get_documents():
     try:
         resources = cloudinary.api.resources(
-            type = "upload",
-            resource_type = "raw",
-            max_results = 500
+            type = "upload", resource_type = "raw", max_results = 500
         )
         return jsonify([res['secure_url'] for res in resources.get('resources', [])])
     except Exception as e:
