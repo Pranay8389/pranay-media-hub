@@ -2,3 +2,4 @@ Flask
 flask-cors
 cloudinary
 gunicorn
+psycopg2-binary
