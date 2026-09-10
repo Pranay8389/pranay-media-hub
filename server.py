@@ -45,6 +45,7 @@ cloudinary.config(
 # ============================================================
 
 def get_db_connection():
+
     if not DATABASE_URL:
         raise Exception("DATABASE_URL is not configured")
 
@@ -60,9 +61,13 @@ def init_database():
     conn = get_db_connection()
 
     try:
+
         cur = conn.cursor()
 
+        # ----------------------------------------------------
         # USERS TABLE
+        # ----------------------------------------------------
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -77,7 +82,10 @@ def init_database():
             )
         """)
 
+        # ----------------------------------------------------
         # SESSIONS TABLE
+        # ----------------------------------------------------
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
                 id SERIAL PRIMARY KEY,
@@ -90,7 +98,10 @@ def init_database():
             )
         """)
 
+        # ----------------------------------------------------
         # FILES TABLE
+        # ----------------------------------------------------
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS files (
                 id SERIAL PRIMARY KEY,
@@ -108,9 +119,11 @@ def init_database():
         """)
 
         conn.commit()
+
         cur.close()
 
     finally:
+
         conn.close()
 
 
@@ -133,7 +146,10 @@ def get_current_user():
     conn = get_db_connection()
 
     try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        cur = conn.cursor(
+            cursor_factory=RealDictCursor
+        )
 
         cur.execute("""
             SELECT users.*
@@ -150,6 +166,7 @@ def get_current_user():
         return user
 
     finally:
+
         conn.close()
 
 
@@ -177,40 +194,76 @@ def signup():
 
         data = request.get_json() or {}
 
-        first_name = data.get("first_name", "").strip()
-        last_name = data.get("last_name", "").strip()
-        email = data.get("email", "").strip().lower()
-        mobile = data.get("mobile", "").strip()
-        username = data.get("username", "").strip()
-        password = data.get("password", "")
+        first_name = data.get(
+            "first_name",
+            ""
+        ).strip()
 
-        # Required fields
+        last_name = data.get(
+            "last_name",
+            ""
+        ).strip()
+
+        email = data.get(
+            "email",
+            ""
+        ).strip().lower()
+
+        mobile = data.get(
+            "mobile",
+            ""
+        ).strip()
+
+        username = data.get(
+            "username",
+            ""
+        ).strip()
+
+        password = data.get(
+            "password",
+            ""
+        )
+
+        # ----------------------------------------------------
+        # REQUIRED FIELDS
+        # ----------------------------------------------------
+
         if not first_name:
+
             return jsonify({
                 "error": "First name is required"
             }), 400
 
         if not last_name:
+
             return jsonify({
                 "error": "Last name is required"
             }), 400
 
         if not email and not mobile:
+
             return jsonify({
-                "error": "Email or mobile number is required"
+                "error":
+                    "Email or mobile number is required"
             }), 400
 
         if not username:
+
             return jsonify({
                 "error": "Username is required"
             }), 400
 
         if len(password) < 6:
+
             return jsonify({
-                "error": "Password must contain at least 6 characters"
+                "error":
+                    "Password must contain at least 6 characters"
             }), 400
 
-        # Empty values become NULL
+        # ----------------------------------------------------
+        # EMPTY VALUES BECOME NULL
+        # ----------------------------------------------------
+
         email = email if email else None
         mobile = mobile if mobile else None
 
@@ -218,49 +271,86 @@ def signup():
 
         try:
 
-            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur = conn.cursor(
+                cursor_factory=RealDictCursor
+            )
 
-            # Check username
+            # ------------------------------------------------
+            # CHECK USERNAME
+            # ------------------------------------------------
+
             cur.execute(
-                "SELECT id FROM users WHERE username = %s",
+                """
+                SELECT id
+                FROM users
+                WHERE username = %s
+                """,
                 (username,)
             )
 
             if cur.fetchone():
+
                 return jsonify({
-                    "error": "Username already exists"
+                    "error":
+                        "Username already exists"
                 }), 409
 
-            # Check email
+            # ------------------------------------------------
+            # CHECK EMAIL
+            # ------------------------------------------------
+
             if email:
 
                 cur.execute(
-                    "SELECT id FROM users WHERE email = %s",
+                    """
+                    SELECT id
+                    FROM users
+                    WHERE email = %s
+                    """,
                     (email,)
                 )
 
                 if cur.fetchone():
+
                     return jsonify({
-                        "error": "Email already registered"
+                        "error":
+                            "Email already registered"
                     }), 409
 
-            # Check mobile
+            # ------------------------------------------------
+            # CHECK MOBILE
+            # ------------------------------------------------
+
             if mobile:
 
                 cur.execute(
-                    "SELECT id FROM users WHERE mobile = %s",
+                    """
+                    SELECT id
+                    FROM users
+                    WHERE mobile = %s
+                    """,
                     (mobile,)
                 )
 
                 if cur.fetchone():
+
                     return jsonify({
-                        "error": "Mobile number already registered"
+                        "error":
+                            "Mobile number already registered"
                     }), 409
 
-            # Hash password
-            password_hash = generate_password_hash(password)
+            # ------------------------------------------------
+            # HASH PASSWORD
+            # ------------------------------------------------
 
-            # Create user
+            password_hash = generate_password_hash(
+                password
+            )
+
+            # ------------------------------------------------
+            # CREATE USER
+            # ------------------------------------------------
+
             cur.execute("""
                 INSERT INTO users (
                     first_name,
@@ -270,7 +360,14 @@ def signup():
                     username,
                     password_hash
                 )
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s
+                )
                 RETURNING id
             """, (
                 first_name,
@@ -286,17 +383,23 @@ def signup():
             conn.commit()
 
             return jsonify({
-                "message": "Account created successfully",
+                "message":
+                    "Account created successfully",
                 "user_id": user_id,
                 "username": username
             }), 201
 
         finally:
+
             conn.close()
 
     except Exception as e:
 
-        print("SIGNUP ERROR:", repr(e), flush=True)
+        print(
+            "SIGNUP ERROR:",
+            repr(e),
+            flush=True
+        )
 
         return jsonify({
             "error": str(e)
@@ -314,24 +417,37 @@ def login():
 
         data = request.get_json() or {}
 
-        login_value = data.get("login", "").strip()
-        password = data.get("password", "")
+        login_value = data.get(
+            "login",
+            ""
+        ).strip()
+
+        password = data.get(
+            "password",
+            ""
+        )
 
         if not login_value:
+
             return jsonify({
-                "error": "Email, mobile number or username is required"
+                "error":
+                    "Email, mobile number or username is required"
             }), 400
 
         if not password:
+
             return jsonify({
-                "error": "Password is required"
+                "error":
+                    "Password is required"
             }), 400
 
         conn = get_db_connection()
 
         try:
 
-            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur = conn.cursor(
+                cursor_factory=RealDictCursor
+            )
 
             cur.execute("""
                 SELECT *
@@ -350,19 +466,26 @@ def login():
             user = cur.fetchone()
 
             if not user:
+
                 return jsonify({
-                    "error": "Invalid login details"
+                    "error":
+                        "Invalid login details"
                 }), 401
 
             if not check_password_hash(
                 user["password_hash"],
                 password
             ):
+
                 return jsonify({
-                    "error": "Invalid login details"
+                    "error":
+                        "Invalid login details"
                 }), 401
 
-            # Create secure session token
+            # ------------------------------------------------
+            # CREATE SECURE SESSION TOKEN
+            # ------------------------------------------------
+
             token = secrets.token_urlsafe(48)
 
             cur.execute("""
@@ -370,7 +493,10 @@ def login():
                     user_id,
                     token
                 )
-                VALUES (%s, %s)
+                VALUES (
+                    %s,
+                    %s
+                )
             """, (
                 user["id"],
                 token
@@ -379,24 +505,44 @@ def login():
             conn.commit()
 
             return jsonify({
-                "message": "Login successful",
-                "token": token,
+                "message":
+                    "Login successful",
+
+                "token":
+                    token,
+
                 "user": {
-                    "id": user["id"],
-                    "first_name": user["first_name"],
-                    "last_name": user["last_name"],
-                    "email": user["email"],
-                    "mobile": user["mobile"],
-                    "username": user["username"]
+                    "id":
+                        user["id"],
+
+                    "first_name":
+                        user["first_name"],
+
+                    "last_name":
+                        user["last_name"],
+
+                    "email":
+                        user["email"],
+
+                    "mobile":
+                        user["mobile"],
+
+                    "username":
+                        user["username"]
                 }
             }), 200
 
         finally:
+
             conn.close()
 
     except Exception as e:
 
-        print("LOGIN ERROR:", repr(e), flush=True)
+        print(
+            "LOGIN ERROR:",
+            repr(e),
+            flush=True
+        )
 
         return jsonify({
             "error": str(e)
@@ -415,24 +561,42 @@ def me():
         user = get_current_user()
 
         if not user:
+
             return jsonify({
-                "error": "Unauthorized"
+                "error":
+                    "Unauthorized"
             }), 401
 
         return jsonify({
             "user": {
-                "id": user["id"],
-                "first_name": user["first_name"],
-                "last_name": user["last_name"],
-                "email": user["email"],
-                "mobile": user["mobile"],
-                "username": user["username"]
+
+                "id":
+                    user["id"],
+
+                "first_name":
+                    user["first_name"],
+
+                "last_name":
+                    user["last_name"],
+
+                "email":
+                    user["email"],
+
+                "mobile":
+                    user["mobile"],
+
+                "username":
+                    user["username"]
             }
         })
 
     except Exception as e:
 
-        print("ME ERROR:", repr(e), flush=True)
+        print(
+            "ME ERROR:",
+            repr(e),
+            flush=True
+        )
 
         return jsonify({
             "error": str(e)
@@ -448,14 +612,23 @@ def logout():
 
     try:
 
-        auth_header = request.headers.get("Authorization", "")
+        auth_header = request.headers.get(
+            "Authorization",
+            ""
+        )
 
         if not auth_header.startswith("Bearer "):
+
             return jsonify({
-                "message": "Already logged out"
+                "message":
+                    "Already logged out"
             })
 
-        token = auth_header.replace("Bearer ", "", 1).strip()
+        token = auth_header.replace(
+            "Bearer ",
+            "",
+            1
+        ).strip()
 
         conn = get_db_connection()
 
@@ -464,7 +637,10 @@ def logout():
             cur = conn.cursor()
 
             cur.execute(
-                "DELETE FROM sessions WHERE token = %s",
+                """
+                DELETE FROM sessions
+                WHERE token = %s
+                """,
                 (token,)
             )
 
@@ -473,15 +649,21 @@ def logout():
             cur.close()
 
             return jsonify({
-                "message": "Logged out successfully"
+                "message":
+                    "Logged out successfully"
             })
 
         finally:
+
             conn.close()
 
     except Exception as e:
 
-        print("LOGOUT ERROR:", repr(e), flush=True)
+        print(
+            "LOGOUT ERROR:",
+            repr(e),
+            flush=True
+        )
 
         return jsonify({
             "error": str(e)
@@ -504,8 +686,10 @@ def upload_file():
         user = get_current_user()
 
         if not user:
+
             return jsonify({
-                "error": "Please login first"
+                "error":
+                    "Please login first"
             }), 401
 
         # ----------------------------------------------------
@@ -513,15 +697,19 @@ def upload_file():
         # ----------------------------------------------------
 
         if "file" not in request.files:
+
             return jsonify({
-                "error": "No file uploaded"
+                "error":
+                    "No file uploaded"
             }), 400
 
         file = request.files["file"]
 
         if not file or not file.filename:
+
             return jsonify({
-                "error": "Selected file is empty"
+                "error":
+                    "Selected file is empty"
             }), 400
 
         # ----------------------------------------------------
@@ -541,8 +729,10 @@ def upload_file():
         ]
 
         if file_type not in allowed_types:
+
             return jsonify({
-                "error": "Invalid file type"
+                "error":
+                    "Invalid file type"
             }), 400
 
         # ----------------------------------------------------
@@ -550,33 +740,79 @@ def upload_file():
         # ----------------------------------------------------
 
         if file_type == "images":
+
             resource_type = "image"
 
-        elif file_type in ["videos", "music"]:
+        elif file_type in [
+            "videos",
+            "music"
+        ]:
+
             resource_type = "video"
 
         else:
+
             resource_type = "raw"
+
+        # ----------------------------------------------------
+        # CREATE SAFE USER FOLDER NAME
+        # ----------------------------------------------------
+        #
+        # Example:
+        #
+        # user_2_pranay_akula
+        #
+        # User ID keeps the folder unique.
+        # First/last name makes it easy to recognize.
+        #
+        # ----------------------------------------------------
+
+        safe_first_name = "".join(
+            c
+            for c in user["first_name"]
+            if c.isalnum()
+        ).lower()
+
+        safe_last_name = "".join(
+            c
+            for c in user["last_name"]
+            if c.isalnum()
+        ).lower()
 
         # ----------------------------------------------------
         # USER-SPECIFIC CLOUDINARY FOLDER
         # ----------------------------------------------------
 
+        user_folder_name = (
+            f"user_{user['id']}"
+            f"_{safe_first_name}"
+            f"_{safe_last_name}"
+        )
+
         folder = (
             f"pranay_media_hub/"
             f"users/"
-            f"user_{user['id']}/"
+            f"{user_folder_name}/"
             f"{file_type}"
         )
 
         print(
             "UPLOAD START:",
             {
-                "user_id": user["id"],
-                "filename": file.filename,
-                "file_type": file_type,
-                "resource_type": resource_type,
-                "folder": folder
+                "user_id":
+                    user["id"],
+
+                "filename":
+                    file.filename,
+
+                "file_type":
+                    file_type,
+
+                "resource_type":
+                    resource_type,
+
+                "folder":
+                    folder
             },
             flush=True
         )
@@ -595,11 +831,16 @@ def upload_file():
         # GET CLOUDINARY DATA
         # ----------------------------------------------------
 
-        url = upload_result.get("secure_url")
+        url = upload_result.get(
+            "secure_url"
+        )
 
-        public_id = upload_result.get("public_id")
+        public_id = upload_result.get(
+            "public_id"
+        )
 
         if not url:
+
             raise Exception(
                 "Cloudinary did not return secure_url"
             )
@@ -623,7 +864,14 @@ def upload_file():
                     url,
                     resource_type
                 )
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s
+                )
             """, (
                 user["id"],
                 file.filename,
@@ -638,14 +886,27 @@ def upload_file():
             cur.close()
 
         finally:
+
             conn.close()
+
+        # ----------------------------------------------------
+        # SUCCESS LOG
+        # ----------------------------------------------------
 
         print(
             "UPLOAD SUCCESS:",
             {
-                "user_id": user["id"],
-                "filename": file.filename,
-                "url": url
+                "user_id":
+                    user["id"],
+
+                "filename":
+                    file.filename,
+
+                "url":
+                    url,
+
+                "cloudinary_folder":
+                    folder
             },
             flush=True
         )
@@ -655,16 +916,26 @@ def upload_file():
         # ----------------------------------------------------
 
         return jsonify({
-            "message": "Uploaded successfully",
-            "url": url,
-            "file_type": file_type,
-            "user_id": user["id"]
+
+            "message":
+                "Uploaded successfully",
+
+            "url":
+                url,
+
+            "file_type":
+                file_type,
+
+            "user_id":
+                user["id"],
+
+            "cloudinary_folder":
+                folder
+
         }), 200
 
     except Exception as e:
 
-        # IMPORTANT:
-        # This prints the real upload error in Render logs.
         print(
             "UPLOAD ERROR:",
             repr(e),
@@ -691,8 +962,10 @@ def get_user_files(file_type):
         user = get_current_user()
 
         if not user:
+
             return jsonify({
-                "error": "Please login first"
+                "error":
+                    "Please login first"
             }), 401
 
         # ----------------------------------------------------
@@ -730,20 +1003,33 @@ def get_user_files(file_type):
             cur.close()
 
             return jsonify([
+
                 {
-                    "id": f["id"],
-                    "filename": f["filename"],
-                    "url": f["url"],
-                    "file_type": f["file_type"],
+                    "id":
+                        f["id"],
+
+                    "filename":
+                        f["filename"],
+
+                    "url":
+                        f["url"],
+
+                    "file_type":
+                        f["file_type"],
+
                     "cloudinary_public_id":
                         f["cloudinary_public_id"],
+
                     "resource_type":
                         f["resource_type"]
                 }
+
                 for f in files
+
             ])
 
         finally:
+
             conn.close()
 
     except Exception as e:
