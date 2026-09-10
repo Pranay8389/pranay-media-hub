@@ -280,13 +280,9 @@ def signup():
         finally:
             conn.close()
 
-    except Exception as e:
-
+   except Exception as e:
     print("UPLOAD ERROR:", repr(e), flush=True)
-
-    return jsonify({
-        "error": str(e)
-    }), 500
+    return jsonify({"error": str(e)}), 500
 
 # ============================================================
 # LOGIN
