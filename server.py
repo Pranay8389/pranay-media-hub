@@ -1,13 +1,11 @@
 import os
 import secrets
-from datetime import datetime, timezone
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 import cloudinary
 import cloudinary.uploader
-import cloudinary.api
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -74,7 +72,8 @@ def init_database():
                 mobile VARCHAR(30) UNIQUE,
                 username VARCHAR(100) UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP WITH TIME ZONE
+                    DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
@@ -82,9 +81,12 @@ def init_database():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
                 token TEXT UNIQUE NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP WITH TIME ZONE
+                    DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
@@ -92,18 +94,20 @@ def init_database():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS files (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
                 filename TEXT,
                 file_type VARCHAR(50) NOT NULL,
                 cloudinary_public_id TEXT,
                 url TEXT NOT NULL,
                 resource_type VARCHAR(30),
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP WITH TIME ZONE
+                    DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
         conn.commit()
-
         cur.close()
 
     finally:
@@ -153,8 +157,9 @@ def get_current_user():
 # HOME
 # ============================================================
 
-@app.route('/')
+@app.route("/")
 def home():
+
     return jsonify({
         "status": "Pranay Media Hub Active",
         "authentication": "enabled"
@@ -165,7 +170,7 @@ def home():
 # SIGNUP
 # ============================================================
 
-@app.route('/signup', methods=['POST'])
+@app.route("/signup", methods=["POST"])
 def signup():
 
     try:
@@ -181,10 +186,14 @@ def signup():
 
         # Required fields
         if not first_name:
-            return jsonify({"error": "First name is required"}), 400
+            return jsonify({
+                "error": "First name is required"
+            }), 400
 
         if not last_name:
-            return jsonify({"error": "Last name is required"}), 400
+            return jsonify({
+                "error": "Last name is required"
+            }), 400
 
         if not email and not mobile:
             return jsonify({
@@ -192,14 +201,16 @@ def signup():
             }), 400
 
         if not username:
-            return jsonify({"error": "Username is required"}), 400
+            return jsonify({
+                "error": "Username is required"
+            }), 400
 
         if len(password) < 6:
             return jsonify({
                 "error": "Password must contain at least 6 characters"
             }), 400
 
-        # Convert empty values to None
+        # Empty values become NULL
         email = email if email else None
         mobile = mobile if mobile else None
 
@@ -222,6 +233,7 @@ def signup():
 
             # Check email
             if email:
+
                 cur.execute(
                     "SELECT id FROM users WHERE email = %s",
                     (email,)
@@ -234,6 +246,7 @@ def signup():
 
             # Check mobile
             if mobile:
+
                 cur.execute(
                     "SELECT id FROM users WHERE mobile = %s",
                     (mobile,)
@@ -244,11 +257,12 @@ def signup():
                         "error": "Mobile number already registered"
                     }), 409
 
+            # Hash password
             password_hash = generate_password_hash(password)
 
+            # Create user
             cur.execute("""
-                INSERT INTO users
-                (
+                INSERT INTO users (
                     first_name,
                     last_name,
                     email,
@@ -280,15 +294,20 @@ def signup():
         finally:
             conn.close()
 
-   except Exception as e:
-    print("UPLOAD ERROR:", repr(e), flush=True)
-    return jsonify({"error": str(e)}), 500
+    except Exception as e:
+
+        print("SIGNUP ERROR:", repr(e), flush=True)
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
 
 # ============================================================
 # LOGIN
 # ============================================================
 
-@app.route('/login', methods=['POST'])
+@app.route("/login", methods=["POST"])
 def login():
 
     try:
@@ -347,8 +366,10 @@ def login():
             token = secrets.token_urlsafe(48)
 
             cur.execute("""
-                INSERT INTO sessions
-                (user_id, token)
+                INSERT INTO sessions (
+                    user_id,
+                    token
+                )
                 VALUES (%s, %s)
             """, (
                 user["id"],
@@ -375,6 +396,8 @@ def login():
 
     except Exception as e:
 
+        print("LOGIN ERROR:", repr(e), flush=True)
+
         return jsonify({
             "error": str(e)
         }), 500
@@ -384,7 +407,7 @@ def login():
 # CURRENT USER
 # ============================================================
 
-@app.route('/me', methods=['GET'])
+@app.route("/me", methods=["GET"])
 def me():
 
     try:
@@ -409,6 +432,8 @@ def me():
 
     except Exception as e:
 
+        print("ME ERROR:", repr(e), flush=True)
+
         return jsonify({
             "error": str(e)
         }), 500
@@ -418,7 +443,7 @@ def me():
 # LOGOUT
 # ============================================================
 
-@app.route('/logout', methods=['POST'])
+@app.route("/logout", methods=["POST"])
 def logout():
 
     try:
@@ -445,6 +470,8 @@ def logout():
 
             conn.commit()
 
+            cur.close()
+
             return jsonify({
                 "message": "Logged out successfully"
             })
@@ -453,6 +480,8 @@ def logout():
             conn.close()
 
     except Exception as e:
+
+        print("LOGOUT ERROR:", repr(e), flush=True)
 
         return jsonify({
             "error": str(e)
@@ -463,10 +492,14 @@ def logout():
 # UPLOAD
 # ============================================================
 
-@app.route('/upload', methods=['POST'])
+@app.route("/upload", methods=["POST"])
 def upload_file():
 
     try:
+
+        # ----------------------------------------------------
+        # CHECK LOGIN
+        # ----------------------------------------------------
 
         user = get_current_user()
 
@@ -475,17 +508,30 @@ def upload_file():
                 "error": "Please login first"
             }), 401
 
-        if 'file' not in request.files:
+        # ----------------------------------------------------
+        # CHECK FILE
+        # ----------------------------------------------------
+
+        if "file" not in request.files:
             return jsonify({
                 "error": "No file uploaded"
             }), 400
 
-        file = request.files['file']
+        file = request.files["file"]
+
+        if not file or not file.filename:
+            return jsonify({
+                "error": "Selected file is empty"
+            }), 400
+
+        # ----------------------------------------------------
+        # FILE TYPE
+        # ----------------------------------------------------
 
         file_type = request.form.get(
-            'file_type',
-            'images'
-        )
+            "file_type",
+            "images"
+        ).strip().lower()
 
         allowed_types = [
             "images",
@@ -499,7 +545,9 @@ def upload_file():
                 "error": "Invalid file type"
             }), 400
 
-        resource_type = "auto"
+        # ----------------------------------------------------
+        # CLOUDINARY RESOURCE TYPE
+        # ----------------------------------------------------
 
         if file_type == "images":
             resource_type = "image"
@@ -507,10 +555,13 @@ def upload_file():
         elif file_type in ["videos", "music"]:
             resource_type = "video"
 
-        elif file_type == "documents":
+        else:
             resource_type = "raw"
 
+        # ----------------------------------------------------
         # USER-SPECIFIC CLOUDINARY FOLDER
+        # ----------------------------------------------------
+
         folder = (
             f"pranay_media_hub/"
             f"users/"
@@ -518,15 +569,44 @@ def upload_file():
             f"{file_type}"
         )
 
+        print(
+            "UPLOAD START:",
+            {
+                "user_id": user["id"],
+                "filename": file.filename,
+                "file_type": file_type,
+                "resource_type": resource_type,
+                "folder": folder
+            },
+            flush=True
+        )
+
+        # ----------------------------------------------------
+        # UPLOAD TO CLOUDINARY
+        # ----------------------------------------------------
+
         upload_result = cloudinary.uploader.upload(
             file,
             folder=folder,
             resource_type=resource_type
         )
 
+        # ----------------------------------------------------
+        # GET CLOUDINARY DATA
+        # ----------------------------------------------------
+
         url = upload_result.get("secure_url")
 
         public_id = upload_result.get("public_id")
+
+        if not url:
+            raise Exception(
+                "Cloudinary did not return secure_url"
+            )
+
+        # ----------------------------------------------------
+        # SAVE FILE INFORMATION IN DATABASE
+        # ----------------------------------------------------
 
         conn = get_db_connection()
 
@@ -535,8 +615,7 @@ def upload_file():
             cur = conn.cursor()
 
             cur.execute("""
-                INSERT INTO files
-                (
+                INSERT INTO files (
                     user_id,
                     filename,
                     file_type,
@@ -556,8 +635,24 @@ def upload_file():
 
             conn.commit()
 
+            cur.close()
+
         finally:
             conn.close()
+
+        print(
+            "UPLOAD SUCCESS:",
+            {
+                "user_id": user["id"],
+                "filename": file.filename,
+                "url": url
+            },
+            flush=True
+        )
+
+        # ----------------------------------------------------
+        # RESPONSE
+        # ----------------------------------------------------
 
         return jsonify({
             "message": "Uploaded successfully",
@@ -567,6 +662,14 @@ def upload_file():
         }), 200
 
     except Exception as e:
+
+        # IMPORTANT:
+        # This prints the real upload error in Render logs.
+        print(
+            "UPLOAD ERROR:",
+            repr(e),
+            flush=True
+        )
 
         return jsonify({
             "error": str(e)
@@ -581,6 +684,10 @@ def get_user_files(file_type):
 
     try:
 
+        # ----------------------------------------------------
+        # CHECK LOGIN
+        # ----------------------------------------------------
+
         user = get_current_user()
 
         if not user:
@@ -588,11 +695,17 @@ def get_user_files(file_type):
                 "error": "Please login first"
             }), 401
 
+        # ----------------------------------------------------
+        # DATABASE
+        # ----------------------------------------------------
+
         conn = get_db_connection()
 
         try:
 
-            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur = conn.cursor(
+                cursor_factory=RealDictCursor
+            )
 
             cur.execute("""
                 SELECT
@@ -614,6 +727,8 @@ def get_user_files(file_type):
 
             files = cur.fetchall()
 
+            cur.close()
+
             return jsonify([
                 {
                     "id": f["id"],
@@ -633,6 +748,12 @@ def get_user_files(file_type):
 
     except Exception as e:
 
+        print(
+            "GET FILES ERROR:",
+            repr(e),
+            flush=True
+        )
+
         return jsonify({
             "error": str(e)
         }), 500
@@ -642,7 +763,7 @@ def get_user_files(file_type):
 # IMAGES
 # ============================================================
 
-@app.route('/images', methods=['GET'])
+@app.route("/images", methods=["GET"])
 def get_images():
 
     return get_user_files("images")
@@ -652,7 +773,7 @@ def get_images():
 # VIDEOS
 # ============================================================
 
-@app.route('/videos', methods=['GET'])
+@app.route("/videos", methods=["GET"])
 def get_videos():
 
     return get_user_files("videos")
@@ -662,7 +783,7 @@ def get_videos():
 # MUSIC
 # ============================================================
 
-@app.route('/music', methods=['GET'])
+@app.route("/music", methods=["GET"])
 def get_music():
 
     return get_user_files("music")
@@ -672,7 +793,7 @@ def get_music():
 # DOCUMENTS
 # ============================================================
 
-@app.route('/documents', methods=['GET'])
+@app.route("/documents", methods=["GET"])
 def get_documents():
 
     return get_user_files("documents")
@@ -686,18 +807,32 @@ try:
 
     init_database()
 
+    print(
+        "DATABASE INITIALIZATION SUCCESS",
+        flush=True
+    )
+
 except Exception as e:
 
-    print("DATABASE INITIALIZATION ERROR:", e)
+    print(
+        "DATABASE INITIALIZATION ERROR:",
+        repr(e),
+        flush=True
+    )
 
 
 # ============================================================
 # RUN
 # ============================================================
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     app.run(
-        host='0.0.0.0',
-        port=int(os.environ.get('PORT', 5000))
+        host="0.0.0.0",
+        port=int(
+            os.environ.get(
+                "PORT",
+                5000
+            )
+        )
     )
