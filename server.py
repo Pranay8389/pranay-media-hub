@@ -138,11 +138,7 @@ def get_current_user():
     if not auth_header.startswith("Bearer "):
         return None
 
-    token = auth_header.replace(
-        "Bearer ",
-        "",
-        1
-    ).strip()
+    token = auth_header.replace("Bearer ", "", 1).strip()
 
     if not token:
         return None
@@ -387,16 +383,10 @@ def signup():
             conn.commit()
 
             return jsonify({
-
                 "message":
                     "Account created successfully",
-
-                "user_id":
-                    user_id,
-
-                "username":
-                    username
-
+                "user_id": user_id,
+                "username": username
             }), 201
 
         finally:
@@ -514,14 +504,7 @@ def login():
 
             conn.commit()
 
-            # ------------------------------------------------
-            # LOGIN RESPONSE
-            # IMPORTANT:
-            # FIRST NAME + LAST NAME INCLUDED
-            # ------------------------------------------------
-
             return jsonify({
-
                 "message":
                     "Login successful",
 
@@ -529,7 +512,6 @@ def login():
                     token,
 
                 "user": {
-
                     "id":
                         user["id"],
 
@@ -548,7 +530,6 @@ def login():
                     "username":
                         user["username"]
                 }
-
             }), 200
 
         finally:
@@ -587,7 +568,6 @@ def me():
             }), 401
 
         return jsonify({
-
             "user": {
 
                 "id":
@@ -608,7 +588,6 @@ def me():
                 "username":
                     user["username"]
             }
-
         })
 
     except Exception as e:
@@ -778,6 +757,15 @@ def upload_file():
         # ----------------------------------------------------
         # CREATE SAFE USER FOLDER NAME
         # ----------------------------------------------------
+        #
+        # Example:
+        #
+        # user_2_pranay_akula
+        #
+        # User ID keeps the folder unique.
+        # First/last name makes it easy to recognize.
+        #
+        # ----------------------------------------------------
 
         safe_first_name = "".join(
             c
@@ -790,6 +778,10 @@ def upload_file():
             for c in user["last_name"]
             if c.isalnum()
         ).lower()
+
+        # ----------------------------------------------------
+        # USER-SPECIFIC CLOUDINARY FOLDER
+        # ----------------------------------------------------
 
         user_folder_name = (
             f"user_{user['id']}"
@@ -861,9 +853,7 @@ def upload_file():
 
         try:
 
-            cur = conn.cursor(
-                cursor_factory=RealDictCursor
-            )
+            cur = conn.cursor()
 
             cur.execute("""
                 INSERT INTO files (
@@ -882,7 +872,6 @@ def upload_file():
                     %s,
                     %s
                 )
-                RETURNING id
             """, (
                 user["id"],
                 file.filename,
@@ -891,8 +880,6 @@ def upload_file():
                 url,
                 resource_type
             ))
-
-            file_id = cur.fetchone()["id"]
 
             conn.commit()
 
@@ -911,9 +898,6 @@ def upload_file():
             {
                 "user_id":
                     user["id"],
-
-                "file_id":
-                    file_id,
 
                 "filename":
                     file.filename,
@@ -936,26 +920,14 @@ def upload_file():
             "message":
                 "Uploaded successfully",
 
-            "id":
-                file_id,
-
             "url":
                 url,
-
-            "filename":
-                file.filename,
 
             "file_type":
                 file_type,
 
             "user_id":
                 user["id"],
-
-            "cloudinary_public_id":
-                public_id,
-
-            "resource_type":
-                resource_type,
 
             "cloudinary_folder":
                 folder
@@ -1050,7 +1022,6 @@ def get_user_files(file_type):
 
                     "resource_type":
                         f["resource_type"]
-
                 }
 
                 for f in files
@@ -1112,192 +1083,6 @@ def get_music():
 def get_documents():
 
     return get_user_files("documents")
-
-
-# ============================================================
-# DELETE FILE
-# ============================================================
-
-@app.route("/files/<int:file_id>", methods=["DELETE"])
-def delete_file(file_id):
-
-    try:
-
-        # ----------------------------------------------------
-        # CHECK LOGIN
-        # ----------------------------------------------------
-
-        user = get_current_user()
-
-        if not user:
-
-            return jsonify({
-                "error":
-                    "Please login first"
-            }), 401
-
-        conn = get_db_connection()
-
-        try:
-
-            cur = conn.cursor(
-                cursor_factory=RealDictCursor
-            )
-
-            # ------------------------------------------------
-            # FIND FILE
-            #
-            # IMPORTANT:
-            # user_id condition prevents one user from
-            # deleting another user's file.
-            # ------------------------------------------------
-
-            cur.execute("""
-                SELECT
-                    id,
-                    user_id,
-                    filename,
-                    cloudinary_public_id,
-                    resource_type
-                FROM files
-                WHERE id = %s
-                AND user_id = %s
-                LIMIT 1
-            """, (
-                file_id,
-                user["id"]
-            ))
-
-            file_data = cur.fetchone()
-
-            if not file_data:
-
-                cur.close()
-
-                return jsonify({
-                    "error":
-                        "File not found"
-                }), 404
-
-            # ------------------------------------------------
-            # DELETE FROM CLOUDINARY
-            # ------------------------------------------------
-
-            public_id = file_data[
-                "cloudinary_public_id"
-            ]
-
-            resource_type = file_data[
-                "resource_type"
-            ] or "image"
-
-            if public_id:
-
-                try:
-
-                    delete_result = cloudinary.uploader.destroy(
-                        public_id,
-                        resource_type=resource_type
-                    )
-
-                    print(
-                        "CLOUDINARY DELETE:",
-                        delete_result,
-                        flush=True
-                    )
-
-                except Exception as cloudinary_error:
-
-                    print(
-                        "CLOUDINARY DELETE ERROR:",
-                        repr(cloudinary_error),
-                        flush=True
-                    )
-
-                    cur.close()
-
-                    return jsonify({
-                        "error":
-                            "Could not delete file from Cloudinary"
-                    }), 500
-
-            # ------------------------------------------------
-            # DELETE FROM DATABASE
-            # ------------------------------------------------
-
-            cur.execute("""
-                DELETE FROM files
-                WHERE id = %s
-                AND user_id = %s
-            """, (
-                file_id,
-                user["id"]
-            ))
-
-            deleted_rows = cur.rowcount
-
-            conn.commit()
-
-            cur.close()
-
-            # ------------------------------------------------
-            # CHECK DATABASE DELETE
-            # ------------------------------------------------
-
-            if deleted_rows == 0:
-
-                return jsonify({
-                    "error":
-                        "File could not be deleted"
-                }), 500
-
-            # ------------------------------------------------
-            # SUCCESS
-            # ------------------------------------------------
-
-            print(
-                "FILE DELETE SUCCESS:",
-                {
-                    "user_id":
-                        user["id"],
-
-                    "file_id":
-                        file_id,
-
-                    "filename":
-                        file_data["filename"]
-                },
-                flush=True
-            )
-
-            return jsonify({
-
-                "message":
-                    "File deleted successfully",
-
-                "file_id":
-                    file_id,
-
-                "filename":
-                    file_data["filename"]
-
-            }), 200
-
-        finally:
-
-            conn.close()
-
-    except Exception as e:
-
-        print(
-            "DELETE FILE ERROR:",
-            repr(e),
-            flush=True
-        )
-
-        return jsonify({
-            "error": str(e)
-        }), 500
 
 
 # ============================================================
