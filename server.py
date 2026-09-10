@@ -282,10 +282,11 @@ def signup():
 
     except Exception as e:
 
-        return jsonify({
-            "error": str(e)
-        }), 500
+    print("UPLOAD ERROR:", repr(e), flush=True)
 
+    return jsonify({
+        "error": str(e)
+    }), 500
 
 # ============================================================
 # LOGIN
